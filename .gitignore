@@ -5,6 +5,15 @@
 *.so
 *.dylib
 
+# Mac
+.DC_Store
+
+# Binaries
+/app/services/sales-api/sales-api
+/app/services/metrics/metrics
+/app/tooling/logfmt
+/app/tooling/sales-admin
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -12,4 +21,8 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
+
+.idea
+
+
