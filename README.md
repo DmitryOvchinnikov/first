@@ -1,2 +1,2 @@
-# service2
-study project for building an app 
+# service first approach
+Microservices 2.0: study project
