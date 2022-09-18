@@ -36,13 +36,14 @@ SHELL := /bin/bash
 # http://localhost:9411/zipkin/
 
 run:
-	go run ./app/sales-api/main.go | go run ./app/tooling/logfmt/main.go
+	#go run ./app/sales-api/main.go | go run ./app/tooling/logfmt/main.go
+	go run ./app/sales-api/main.go
 
 
 # Module support
 
 tidy:
-	go mod tidy
+	go mod tidy -compat=1.18
 	go mod vendor
 
 update:
