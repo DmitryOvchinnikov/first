@@ -9,10 +9,10 @@
 .DC_Store
 
 # Binaries
-/app/services/sales-api/sales-api
-/app/services/metrics/metrics
-/app/tooling/logfmt
-/app/tooling/sales-admin
+app/sales-api/sales-api
+app/metrics/metrics
+app/tooling/logfmt
+app/tooling/sales-admin
 
 # Test binary, built with `go test -c`
 *.test
