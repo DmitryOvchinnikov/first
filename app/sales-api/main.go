@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/dmitryovchinnikov/first/app/sales-api/handlers"
 	"github.com/dmitryovchinnikov/first/foundation/logger"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -55,12 +56,12 @@ func run(log *zap.SugaredLogger) error {
 	var cfg = struct {
 		conf.Version
 		Web struct {
+			APIHost         string        `conf:"default:0.0.0.0:3000"`
+			DebugHost       string        `conf:"default:0.0.0.0:4000"`
 			ReadTimeout     time.Duration `conf:"default:5s"`
 			WriteTimeout    time.Duration `conf:"default:10s"`
 			IdleTimeout     time.Duration `conf:"default:120s"`
 			ShutdownTimeout time.Duration `conf:"default:20s"`
-			APIHost         string        `conf:"default:0.0.0.0:3000"`
-			DebugHost       string        `conf:"default:0.0.0.0:4000"`
 		}
 	}{
 		Version: conf.Version{
@@ -129,18 +130,18 @@ func run(log *zap.SugaredLogger) error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
-	//// Construct the mux for the API calls.
-	//apiMux := handlers.APIMux(handlers.APIMuxConfig{
-	//	Shutdown: shutdown,
-	//	Log:      log,
-	//	Auth:     auth,
-	//	DB:       db,
-	//})
+	// Construct the mux for the API calls.
+	apiMux := handlers.APIMux(handlers.APIMuxConfig{
+		Shutdown: shutdown,
+		Log:      log,
+		//Auth:     auth,
+		//DB:       db,
+	})
 
 	// Construct a server to service the requests against the mux.
 	api := http.Server{
-		Addr: cfg.Web.APIHost,
-		//Handler:      apiMux,
+		Addr:         cfg.Web.APIHost,
+		Handler:      apiMux,
 		ReadTimeout:  cfg.Web.ReadTimeout,
 		WriteTimeout: cfg.Web.WriteTimeout,
 		IdleTimeout:  cfg.Web.IdleTimeout,
