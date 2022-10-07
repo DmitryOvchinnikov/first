@@ -10,6 +10,7 @@ import (
 
 	"github.com/dmitryovchinnikov/first/app/services/sales-api/handlers/debug/checkgrp"
 	v1TestGrp "github.com/dmitryovchinnikov/first/app/services/sales-api/handlers/v1/testgrp"
+	"github.com/dmitryovchinnikov/first/business/web/v1/mid"
 	"github.com/dmitryovchinnikov/first/foundation/web"
 	"go.uber.org/zap"
 )
@@ -66,10 +67,10 @@ func APIMux(cfg APIMuxConfig) *web.App {
 	// Construct the web.App which holds all routes.
 	app := web.NewApp(
 		cfg.Shutdown,
-		//mid.Logger(cfg.Log),
-		//mid.Errors(cfg.Log),
-		//mid.Metrics(),
-		//mid.Panics(),
+		mid.Logger(cfg.Log),
+		mid.Errors(cfg.Log),
+		mid.Metrics(),
+		mid.Panics(),
 	)
 
 	// Load the routes for the different versions of the API.
