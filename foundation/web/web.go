@@ -6,11 +6,8 @@ import (
 	"net/http"
 	"os"
 	"syscall"
-	"time"
 
 	"github.com/dimfeld/httptreemux/v5"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // A Handler is a type that handles an http request within our own little mini
@@ -22,9 +19,9 @@ type Handler func(ctx context.Context, w http.ResponseWriter, r *http.Request) e
 // data/logic on this App struct.
 type App struct {
 	mux      *httptreemux.ContextMux
-	otmux    http.Handler
 	shutdown chan os.Signal
-	mw       []Middleware
+	//otmux    http.Handler
+	//mw       []Middleware
 }
 
 // NewApp creates an App value that handle a set of routes for the application.
@@ -42,8 +39,8 @@ func NewApp(shutdown chan os.Signal, mw ...Middleware) *App {
 	return &App{
 		mux:      mux,
 		shutdown: shutdown,
-		otmux:    otelhttp.NewHandler(mux, "request"),
-		mw:       mw,
+		//otmux:    otelhttp.NewHandler(mux, "request"),
+		//mw:       mw,
 	}
 }
 
@@ -57,19 +54,19 @@ func (a *App) SignalShutdown() {
 // all http traffic and allows the opentelemetry mux to run first to handle
 // tracing. The opentelemetry mux then calls the application mux to handle
 // application traffic. This was setup on line 44 in the NewApp function.
-func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	a.otmux.ServeHTTP(w, r)
-}
+//func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+//	a.otmux.ServeHTTP(w, r)
+//}
 
 // Handle sets a handler function for a given HTTP method and path pair
 // to the application server mux.
 func (a *App) Handle(method string, group string, path string, handler Handler, mw ...Middleware) {
 
 	// First wrap handler specific middleware around this handler.
-	handler = wrapMiddleware(mw, handler)
+	//handler = wrapMiddleware(mw, handler)
 
 	// Add the application's general middleware to the handler chain.
-	handler = wrapMiddleware(a.mw, handler)
+	//handler = wrapMiddleware(a.mw, handler)
 
 	// The function to execute for each request.
 	h := func(w http.ResponseWriter, r *http.Request) {
@@ -79,15 +76,15 @@ func (a *App) Handle(method string, group string, path string, handler Handler, 
 		ctx := r.Context()
 
 		// Capture the parent request span from the context.
-		span := trace.SpanFromContext(ctx)
+		//span := trace.SpanFromContext(ctx)
 
 		// Set the context with the required values to
 		// process the request.
-		v := Values{
-			TraceID: span.SpanContext().TraceID().String(),
-			Now:     time.Now(),
-		}
-		ctx = context.WithValue(ctx, key, &v)
+		//v := Values{
+		//	TraceID: span.SpanContext().TraceID().String(),
+		//	Now:     time.Now(),
+		//}
+		//ctx = context.WithValue(ctx, key, &v)
 
 		// Call the wrapped handler functions.
 		if err := handler(ctx, w, r); err != nil {
