@@ -22,8 +22,8 @@ type Handler func(ctx context.Context, w http.ResponseWriter, r *http.Request) e
 // data/logic on this App struct.
 type App struct {
 	mux      *httptreemux.ContextMux
-	shutdown chan os.Signal
 	otmux    http.Handler
+	shutdown chan os.Signal
 	mw       []Middleware
 }
 
@@ -41,8 +41,8 @@ func NewApp(shutdown chan os.Signal, mw ...Middleware) *App {
 
 	return &App{
 		mux:      mux,
-		shutdown: shutdown,
 		otmux:    otelhttp.NewHandler(mux, "request"),
+		shutdown: shutdown,
 		mw:       mw,
 	}
 }

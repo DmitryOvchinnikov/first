@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof" // Register the pprof handlers
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -15,6 +16,13 @@ import (
 	"github.com/dmitryovchinnikov/first/app/services/sales-api/handlers"
 	"github.com/dmitryovchinnikov/first/foundation/logger"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/zipkin"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.uber.org/automaxprocs/maxprocs"
 	"go.uber.org/zap"
 )
 
@@ -50,6 +58,17 @@ func main() {
 func run(log *zap.SugaredLogger) error {
 
 	/*
+		GOMAXPROCS
+	*/
+
+	// Set the correct number of threads for the service
+	// based on what is available either by the machine or quotas.
+	if _, err := maxprocs.Set(); err != nil {
+		return fmt.Errorf("maxprocs: %w", err)
+	}
+	log.Infow("startup", "GOMAXPROCS", runtime.GOMAXPROCS(0))
+
+	/*
 		Configuration
 	*/
 
@@ -62,6 +81,11 @@ func run(log *zap.SugaredLogger) error {
 			WriteTimeout    time.Duration `conf:"default:10s"`
 			IdleTimeout     time.Duration `conf:"default:120s"`
 			ShutdownTimeout time.Duration `conf:"default:20s"`
+		}
+		Zipkin struct {
+			ReporterURI string  `conf:"default:http://localhost:9411/api/v2/spans"`
+			ServiceName string  `conf:"default:sales-api"`
+			Probability float64 `conf:"default:0.05"`
 		}
 	}{
 		Version: conf.Version{
@@ -96,6 +120,22 @@ func run(log *zap.SugaredLogger) error {
 	expvar.NewString("build").Set(build)
 
 	/*
+		Start Tracing Support
+	*/
+
+	log.Infow("startup", "status", "initializing OT/Zipkin tracing support")
+
+	traceProvider, err := startTracing(
+		cfg.Zipkin.ServiceName,
+		cfg.Zipkin.ReporterURI,
+		cfg.Zipkin.Probability,
+	)
+	if err != nil {
+		return fmt.Errorf("starting tracing: %w", err)
+	}
+	defer traceProvider.Shutdown(context.Background())
+
+	/*
 		Start Debug Service
 	*/
 
@@ -109,12 +149,14 @@ func run(log *zap.SugaredLogger) error {
 	// related endpoints. This includes the standard library endpoints.
 
 	// Construct the mux for the debug calls.
+	debugMux := handlers.DebugMux(build, log)
 	//debugMux := handlers.DebugMux(build, log, db)
 
 	// Start the service listening for debug requests.
 	// Not concerned with shutting this down with load shedding.
 	go func() {
-		if err := http.ListenAndServe(cfg.Web.DebugHost, http.DefaultServeMux); err != nil {
+		//if err := http.ListenAndServe(cfg.Web.DebugHost, http.DefaultServeMux); err != nil {
+		if err := http.ListenAndServe(cfg.Web.DebugHost, debugMux); err != nil {
 			log.Errorw("shutdown", "status", "debug v1 router closed", "host", cfg.Web.DebugHost, "ERROR", err)
 		}
 	}()
@@ -183,4 +225,40 @@ func run(log *zap.SugaredLogger) error {
 	}
 
 	return nil
+}
+
+// startTracing configure open telemetery to be used with zipkin.
+func startTracing(serviceName string, reporterURI string, probability float64) (*trace.TracerProvider, error) {
+
+	// WARNING: The current settings are using defaults which may not be
+	// compatible with your project. Please review the documentation for
+	// opentelemetry.
+
+	exporter, err := zipkin.New(
+		reporterURI,
+		// zipkin.WithLogger(zap.NewStdLog(log)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating new exporter: %w", err)
+	}
+
+	traceProvider := trace.NewTracerProvider(
+		trace.WithSampler(trace.TraceIDRatioBased(probability)),
+		trace.WithBatcher(exporter,
+			trace.WithMaxExportBatchSize(trace.DefaultMaxExportBatchSize),
+			trace.WithBatchTimeout(trace.DefaultScheduleDelay),
+			trace.WithMaxExportBatchSize(trace.DefaultMaxExportBatchSize),
+		),
+		trace.WithResource(
+			resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(serviceName),
+				attribute.String("exporter", "zipkin"),
+			),
+		),
+	)
+
+	// I can only get this working properly using the singleton :(
+	otel.SetTracerProvider(traceProvider)
+	return traceProvider, nil
 }
