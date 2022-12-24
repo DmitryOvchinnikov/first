@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
-	"github.com/dmitryovchinnikov/first/app/sales-api/handlers"
+	"github.com/dmitryovchinnikov/first/app/services/sales-api/handlers"
 	"github.com/dmitryovchinnikov/first/foundation/logger"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
